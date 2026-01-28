@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 
 const AdminDashboard = () => {
     const [topics, setTopics] = useState([]);
@@ -26,15 +27,15 @@ const AdminDashboard = () => {
             await axios.post('http://localhost:5000/api/topics', newTopic);
             setNewTopic({ title: '', slug: '', description: '' });
             fetchTopics();
-            alert('Topic Created Successfully!');
+            toast.success('Topic Created Successfully!');
         } catch (err) {
-            alert('Error: ' + (err.response?.data?.message || err.message));
+            toast.error('Error: ' + (err.response?.data?.message || err.message));
         }
     };
 
     const handleCreateSub = async (e) => {
         e.preventDefault();
-        if (!newSub.topicId) return alert('Please select a parent topic');
+        if (!newSub.topicId) return toast.error('Please select a parent topic');
         try {
             await axios.post(`http://localhost:5000/api/topics/${newSub.topicId}/subheadings`, {
                 title: newSub.title,
@@ -43,15 +44,15 @@ const AdminDashboard = () => {
             });
             setNewSub(prev => ({ ...prev, title: '', slug: '' }));
             fetchTopics();
-            alert('Subheading Added Successfully!');
+            toast.success('Subheading Added Successfully!');
         } catch (err) {
-            alert('Error: ' + (err.response?.data?.message || err.message));
+            toast.error('Error: ' + (err.response?.data?.message || err.message));
         }
     };
 
     const handleCreateSec = async (e) => {
         e.preventDefault();
-        if (!newSec.topicId || !newSec.subheadingId) return alert('Please select topic and subheading');
+        if (!newSec.topicId || !newSec.subheadingId) return toast.error('Please select topic and subheading');
 
         try {
             await axios.post(`http://localhost:5000/api/topics/${newSec.topicId}/subheadings/${newSec.subheadingId}/secondary`, {
@@ -61,9 +62,9 @@ const AdminDashboard = () => {
             });
             setNewSec(prev => ({ ...prev, title: '', slug: '' }));
             fetchTopics();
-            alert('Secondary Heading Added Successfully!');
+            toast.success('Secondary Heading Added Successfully!');
         } catch (err) {
-            alert('Error: ' + (err.response?.data?.message || err.message));
+            toast.error('Error: ' + (err.response?.data?.message || err.message));
         }
     };
 

@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: '/BrainDocs-Frontend/',
+  base: process.env.NODE_ENV === 'production' ? '/BrainDocs-Frontend/' : '/',
   server: {
     port: 3000,
   },

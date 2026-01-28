@@ -5,6 +5,7 @@ import clsx from 'clsx';
 import { Plus, Save, Edit, Trash2, Type, Code, Image, Video, FileText, Copy, Check } from 'lucide-react';
 
 import toast from 'react-hot-toast';
+import ConfirmationModal from '../components/ConfirmationModal';
 
 const TopicPage = () => {
     // ... existing hooks
@@ -45,6 +46,7 @@ const TopicPage = () => {
     const [blocks, setBlocks] = useState([]); // Array of { type: 'text'|'code'|..., content: '' }
     const [metadata, setMetadata] = useState({ title: '', description: '', slug: '', titleLevel: 'h1' });
     const [showAddMenu, setShowAddMenu] = useState(false);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
     useEffect(() => {
         fetchData();
@@ -129,15 +131,13 @@ const TopicPage = () => {
         }
     };
 
-    const handleDelete = async () => {
+    const handleDeleteClick = () => {
+        setIsDeleteModalOpen(true);
+    };
+
+    const confirmDelete = async () => {
         if (!topic) return;
-
         const type = secondarySlug ? 'Secondary Heading' : subSlug ? 'Subheading' : 'Topic';
-
-        if (!window.confirm(`Are you sure you want to delete this ${type}? This action cannot be undone.`)) {
-            return;
-        }
-
         const toastId = toast.loading(`Deleting ${type}...`);
 
         try {
@@ -145,20 +145,21 @@ const TopicPage = () => {
                 const sub = topic.subheadings.find(s => s.slug === subSlug);
                 await axios.delete(`http://localhost:5000/api/topics/${topic._id}/subheadings/${sub._id}/secondary/${activeItem._id}`);
                 toast.success('Deleted successfully', { id: toastId });
-                navigate(`/topic/${topicSlug}/${subSlug}`); // Go back to subheading
+                navigate(`/topic/${topicSlug}/${subSlug}`);
             } else if (subSlug) {
                 await axios.delete(`http://localhost:5000/api/topics/${topic._id}/subheadings/${activeItem._id}`);
                 toast.success('Deleted successfully', { id: toastId });
-                navigate(`/topic/${topicSlug}`); // Go back to main topic
+                navigate(`/topic/${topicSlug}`);
             } else {
-                // Delete Main Topic
                 await axios.delete(`http://localhost:5000/api/topics/${topic._id}`);
                 toast.success('Deleted successfully', { id: toastId });
-                navigate('/'); // Go home
+                navigate('/');
             }
         } catch (err) {
             console.error(err);
             toast.error('Failed to delete', { id: toastId });
+        } finally {
+            setIsDeleteModalOpen(false);
         }
     };
 
@@ -576,7 +577,7 @@ const TopicPage = () => {
                     ) : (
                         <div className="flex gap-2">
                             <button
-                                onClick={handleDelete}
+                                onClick={handleDeleteClick}
                                 className="p-4 bg-red-500 hover:bg-red-600 text-white rounded-full shadow-2xl transition-all hover:scale-110 active:scale-95 flex items-center gap-2 border-2 border-red-400"
                                 title="Delete Page"
                             >
@@ -593,6 +594,14 @@ const TopicPage = () => {
                     )}
                 </div>
             </div>
+
+            <ConfirmationModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={confirmDelete}
+                title={`Delete ${secondarySlug ? 'Secondary Heading' : subSlug ? 'Subheading' : 'Topic'}?`}
+                message="Are you sure you want to delete this item? This action cannot be undone and all content within it will be lost."
+            />
         </div>
     );
 };
