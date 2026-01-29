@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import axios from 'axios';
+import axios from '../utils/axios';
 import { io } from 'socket.io-client';
 import { ChevronDown, ChevronRight, BookOpen, Plus, X } from 'lucide-react';
 import clsx from 'clsx';
+import { API_URL } from '../config/api';
+import { useAuth } from '../context/AuthContext';
 
-const socket = io('http://localhost:5000');
+const socket = io(API_URL);
 
 const Sidebar = ({ isOpen, toggleSidebar }) => {
     const [topics, setTopics] = useState([]);
@@ -13,21 +15,23 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
     const [subExpanded, setSubExpanded] = useState({}); // Subheading expansion for secondary headers
     const location = useLocation();
 
+    const { token } = useAuth();
+
     useEffect(() => {
         fetchTopics();
 
-        socket.on('topics_updated', (updatedTopics) => {
-            setTopics(updatedTopics);
+        socket.on('topics_updated', () => {
+            fetchTopics(); // Refetch topics when updated
         });
 
         return () => {
             socket.off('topics_updated');
         };
-    }, []);
+    }, [token]); // Refetch when token changes (login/logout)
 
     const fetchTopics = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/topics');
+            const res = await axios.get('/api/topics');
             setTopics(res.data);
         } catch (err) {
             console.error(err);
@@ -111,7 +115,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                                                             to={`/topic/${topic.slug}/${sub.slug}`}
                                                             className={clsx(
                                                                 "flex-1 block py-2 px-3 text-sm rounded-lg transition-all duration-200",
-                                                                location.pathname.includes(`/topic/${topic.slug}/${sub.slug}`)
+                                                                (location.pathname === `/topic/${topic.slug}/${sub.slug}` || location.pathname.startsWith(`/topic/${topic.slug}/${sub.slug}/`))
                                                                     ? "bg-blue-100 text-blue-700 font-medium shadow-sm"
                                                                     : "text-slate-700 hover:text-slate-900 hover:bg-slate-200/50"
                                                             )}
@@ -138,7 +142,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                                                                     to={`/topic/${topic.slug}/${sub.slug}/${sec.slug}`}
                                                                     className={clsx(
                                                                         "block py-1.5 px-3 text-xs rounded-md transition-all duration-200",
-                                                                        location.pathname === `/topic/${topic.slug}/${sub.slug}/${sec.slug}`
+                                                                        (location.pathname === `/topic/${topic.slug}/${sub.slug}/${sec.slug}`)
                                                                             ? "text-blue-600 font-semibold bg-blue-50/50"
                                                                             : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/50"
                                                                     )}

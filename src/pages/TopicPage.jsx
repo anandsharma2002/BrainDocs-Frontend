@@ -6,6 +6,7 @@ import { Plus, Save, Edit, Trash2, Type, Code, Image, Video, FileText, Copy, Che
 
 import toast from 'react-hot-toast';
 import ConfirmationModal from '../components/ConfirmationModal';
+import { API_URL } from '../config/api';
 
 const TopicPage = () => {
     // ... existing hooks
@@ -22,7 +23,7 @@ const TopicPage = () => {
         const toastId = toast.loading('Uploading image...');
 
         try {
-            const res = await axios.post('http://localhost:5000/api/upload', formData, {
+            const res = await axios.post(`${API_URL}/api/upload`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
@@ -55,23 +56,33 @@ const TopicPage = () => {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const res = await axios.get('http://localhost:5000/api/topics'); // In real app, fetch specific topic query
-            const foundTopic = res.data.find(t => t.slug === topicSlug);
+            const res = await axios.get(`${API_URL}/api/topics`);
+
+            // Case-insensitive matching
+            const foundTopic = res.data.find(t => t.slug.toLowerCase() === topicSlug?.toLowerCase());
 
             if (foundTopic) {
                 setTopic(foundTopic);
 
                 let current = null;
                 // Determine active item
+                // Determine active item robustly to handle duplicate sub slugs
                 if (subSlug) {
-                    const sub = foundTopic.subheadings.find(s => s.slug === subSlug);
-                    if (sub) {
-                        if (secondarySlug) {
-                            const sec = sub.secondaryHeadings.find(s => s.slug === secondarySlug);
-                            current = sec;
-                        } else {
-                            current = sub;
+                    // 1. Filter ALL subheadings that match the subSlug (case-insensitive)
+                    const subCandidates = foundTopic.subheadings.filter(s => s.slug.toLowerCase() === subSlug?.toLowerCase());
+
+                    if (secondarySlug) {
+                        // 2. If looking for a secondary page, find the sub candidate that ACTUALLY contains it
+                        for (const sub of subCandidates) {
+                            const sec = sub.secondaryHeadings.find(s => s.slug.toLowerCase() === secondarySlug?.toLowerCase());
+                            if (sec) {
+                                current = sec;
+                                break;
+                            }
                         }
+                    } else {
+                        // 3. If just looking for a sub page (no secondary), take the first match
+                        current = subCandidates[0];
                     }
                 }
 
@@ -85,12 +96,20 @@ const TopicPage = () => {
                         titleLevel: current.titleLevel || 'h1'
                     });
                 } else {
-                    // Main Topic Page
-                    setActiveItem(null);
+                    // If we have a subSlug but couldn't find it, activeItem remains null -> "Content not found"
+                    // But if we only have topicSlug (no subSlug), we set null to trigger Main Topic view fallback
+                    if (!subSlug) {
+                        setActiveItem(null);
+                    } else {
+                        setActiveItem(null); // Explicitly null if subSlug exists but not found
+                    }
                 }
+            } else {
+                setTopic(null);
             }
         } catch (err) {
             console.error(err);
+            toast.error("Failed to load topic.");
         } finally {
             setLoading(false);
         }
@@ -104,11 +123,13 @@ const TopicPage = () => {
         try {
             let url = '';
             if (secondarySlug) {
-                // Find subId 
-                const sub = topic.subheadings.find(s => s.slug === subSlug);
-                url = `http://localhost:5000/api/topics/${topic._id}/subheadings/${sub._id}/secondary/${activeItem._id}`;
+                // Find parent sub by ID logic (most robust)
+                const sub = topic.subheadings.find(s => s.secondaryHeadings.some(sec => sec._id === activeItem._id));
+                if (!sub) throw new Error("Parent subheading not found");
+
+                url = `${API_URL}/api/topics/${topic._id}/subheadings/${sub._id}/secondary/${activeItem._id}`;
             } else {
-                url = `http://localhost:5000/api/topics/${topic._id}/subheadings/${activeItem._id}`;
+                url = `${API_URL}/api/topics/${topic._id}/subheadings/${activeItem._id}`;
             }
 
             // Ensure blocks is clean
@@ -142,16 +163,16 @@ const TopicPage = () => {
 
         try {
             if (secondarySlug) {
-                const sub = topic.subheadings.find(s => s.slug === subSlug);
-                await axios.delete(`http://localhost:5000/api/topics/${topic._id}/subheadings/${sub._id}/secondary/${activeItem._id}`);
+                const sub = topic.subheadings.find(s => s.secondaryHeadings.some(sec => sec._id === activeItem._id));
+                await axios.delete(`${API_URL}/api/topics/${topic._id}/subheadings/${sub._id}/secondary/${activeItem._id}`);
                 toast.success('Deleted successfully', { id: toastId });
                 navigate(`/topic/${topicSlug}/${subSlug}`);
             } else if (subSlug) {
-                await axios.delete(`http://localhost:5000/api/topics/${topic._id}/subheadings/${activeItem._id}`);
+                await axios.delete(`${API_URL}/api/topics/${topic._id}/subheadings/${activeItem._id}`);
                 toast.success('Deleted successfully', { id: toastId });
                 navigate(`/topic/${topicSlug}`);
             } else {
-                await axios.delete(`http://localhost:5000/api/topics/${topic._id}`);
+                await axios.delete(`${API_URL}/api/topics/${topic._id}`);
                 toast.success('Deleted successfully', { id: toastId });
                 navigate('/');
             }
@@ -426,17 +447,38 @@ const TopicPage = () => {
     return (
         <div className="p-8 md:p-12 max-w-5xl mx-auto relative min-h-screen pb-40">
             {/* Breadcrumbs */}
-            <div className="mb-10 flex items-center gap-2 text-sm font-medium text-slate-500 overflow-x-auto whitespace-nowrap pb-2">
-                <span onClick={() => navigate(`/topic/${topicSlug}`)} className="hover:text-blue-600 transition-colors cursor-pointer capitalize">{topicSlug}</span>
-                <span className="text-slate-300">/</span>
-                <span onClick={() => !secondarySlug && navigate(`/topic/${topicSlug}/${subSlug}`)} className={clsx("capitalize", !secondarySlug ? "text-slate-900 font-semibold" : "hover:text-slate-900 transition-colors cursor-pointer")}>
-                    {subSlug?.replace(/-/g, ' ')}
-                </span>
-                {secondarySlug && (
-                    <>
-                        <span className="text-slate-300">/</span>
-                        <span className="text-slate-900 font-semibold capitalize">{secondarySlug?.replace(/-/g, ' ')}</span>
-                    </>
+            <div className="mb-10 flex items-center justify-between text-sm font-medium text-slate-500 border-b border-slate-100 pb-4">
+                <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap">
+                    <span onClick={() => navigate(`/topic/${topicSlug}`)} className="hover:text-blue-600 transition-colors cursor-pointer capitalize">{topicSlug}</span>
+                    <span className="text-slate-300">/</span>
+                    <span onClick={() => !secondarySlug && navigate(`/topic/${topicSlug}/${subSlug}`)} className={clsx("capitalize", !secondarySlug ? "text-slate-900 font-semibold" : "hover:text-slate-900 transition-colors cursor-pointer")}>
+                        {subSlug?.replace(/-/g, ' ')}
+                    </span>
+                    {secondarySlug && (
+                        <>
+                            <span className="text-slate-300">/</span>
+                            <span className="text-slate-900 font-semibold capitalize">{secondarySlug?.replace(/-/g, ' ')}</span>
+                        </>
+                    )}
+                </div>
+
+                {!isEditing && (
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setIsEditing(true)}
+                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                            title="Edit Page"
+                        >
+                            <Edit size={18} />
+                        </button>
+                        <button
+                            onClick={handleDeleteClick}
+                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                            title="Delete Page"
+                        >
+                            <Trash2 size={18} />
+                        </button>
+                    </div>
                 )}
             </div>
 
@@ -571,26 +613,17 @@ const TopicPage = () => {
                                 onClick={handleSave}
                                 className="px-6 py-4 bg-green-600 hover:bg-green-700 text-white rounded-full font-bold shadow-xl flex items-center gap-2 transition-all hover:scale-105 active:scale-95"
                             >
-                                <Save size={20} /> Save Page
+                                <Save size={20} /> Save
                             </button>
                         </>
                     ) : (
-                        <div className="flex gap-2">
-                            <button
-                                onClick={handleDeleteClick}
-                                className="p-4 bg-red-500 hover:bg-red-600 text-white rounded-full shadow-2xl transition-all hover:scale-110 active:scale-95 flex items-center gap-2 border-2 border-red-400"
-                                title="Delete Page"
-                            >
-                                <Trash2 size={20} />
-                            </button>
-                            <button
-                                onClick={() => setIsEditing(true)}
-                                className="p-4 bg-slate-900 hover:bg-black text-white rounded-full shadow-2xl transition-all hover:scale-110 active:scale-95 flex items-center gap-2 border-2 border-slate-700 hover:border-slate-600"
-                                title="Edit Page Content"
-                            >
-                                <Edit size={20} />
-                            </button>
-                        </div>
+                        <button
+                            onClick={() => { setIsEditing(true); setShowAddMenu(true); }}
+                            className="p-4 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-2xl transition-all hover:scale-110 active:scale-95 flex items-center justify-center"
+                            title="Add Content"
+                        >
+                            <Plus size={24} strokeWidth={3} />
+                        </button>
                     )}
                 </div>
             </div>

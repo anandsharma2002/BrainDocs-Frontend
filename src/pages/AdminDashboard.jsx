@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import axios from '../utils/axios';
 import toast from 'react-hot-toast';
+import { API_URL } from '../config/api';
 
 const AdminDashboard = () => {
     const [topics, setTopics] = useState([]);
-    const [newTopic, setNewTopic] = useState({ title: '', slug: '', description: '' });
+    const [newTopic, setNewTopic] = useState({ title: '', slug: '', description: '', isPublic: false });
     const [newSub, setNewSub] = useState({ topicId: '', title: '', slug: '', content: '' });
     const [newSec, setNewSec] = useState({ topicId: '', subheadingId: '', title: '', slug: '', content: '' });
 
@@ -14,7 +15,7 @@ const AdminDashboard = () => {
 
     const fetchTopics = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/topics');
+            const res = await axios.get('/api/topics');
             setTopics(res.data);
         } catch (err) {
             console.error(err);
@@ -24,8 +25,8 @@ const AdminDashboard = () => {
     const handleCreateTopic = async (e) => {
         e.preventDefault();
         try {
-            await axios.post('http://localhost:5000/api/topics', newTopic);
-            setNewTopic({ title: '', slug: '', description: '' });
+            await axios.post('/api/topics', newTopic);
+            setNewTopic({ title: '', slug: '', description: '', isPublic: false });
             fetchTopics();
             toast.success('Topic Created Successfully!');
         } catch (err) {
@@ -37,7 +38,7 @@ const AdminDashboard = () => {
         e.preventDefault();
         if (!newSub.topicId) return toast.error('Please select a parent topic');
         try {
-            await axios.post(`http://localhost:5000/api/topics/${newSub.topicId}/subheadings`, {
+            await axios.post(`/api/topics/${newSub.topicId}/subheadings`, {
                 title: newSub.title,
                 slug: newSub.slug,
                 content: []
@@ -55,7 +56,7 @@ const AdminDashboard = () => {
         if (!newSec.topicId || !newSec.subheadingId) return toast.error('Please select topic and subheading');
 
         try {
-            await axios.post(`http://localhost:5000/api/topics/${newSec.topicId}/subheadings/${newSec.subheadingId}/secondary`, {
+            await axios.post(`/api/topics/${newSec.topicId}/subheadings/${newSec.subheadingId}/secondary`, {
                 title: newSec.title,
                 slug: newSec.slug,
                 content: []
@@ -107,6 +108,18 @@ const AdminDashboard = () => {
                                 placeholder="e.g. react-fundamentals"
                             />
                         </div>
+                    </div>
+                    <div>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={newTopic.isPublic}
+                                onChange={e => setNewTopic({ ...newTopic, isPublic: e.target.checked })}
+                                className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-2 focus:ring-blue-500"
+                            />
+                            <span className="text-sm font-semibold text-slate-700">Make this topic public</span>
+                        </label>
+                        <p className="text-xs text-slate-500 mt-1 ml-6">Public topics can be viewed by all users</p>
                     </div>
                     <button type="submit" className="w-full md:w-auto px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-blue-500/30 hover:shadow-blue-500/40 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200">
                         Create Topic
