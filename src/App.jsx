@@ -1,56 +1,119 @@
-import { useState } from 'react';
-import { Routes, Route } from 'react-router-dom';
-import { Menu } from 'lucide-react';
-import Sidebar from './components/Sidebar';
-import Home from './pages/Home';
-import AdminDashboard from './pages/AdminDashboard';
-import TopicPage from './pages/TopicPage';
-
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import Home from './pages/Home';
+import Login from './pages/Login';
+import Signup from './pages/Signup';
+import MainLayout from './components/layout/MainLayout';
+import TopicPage from './pages/TopicPage';
+import ProfilePage from './pages/ProfilePage';
+import PublicProfile from './pages/PublicProfile';
+import SearchResults from './pages/SearchResults';
+import DashboardHome from './pages/DashboardHome';
+import Features from './pages/Features';
+import About from './pages/About';
+import PublicLayout from './components/layout/PublicLayout';
+
+// Protected Route Wrapper
+const ProtectedRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return <div>Loading...</div>;
+  if (!user) return <Navigate to="/login" />;
+  return children;
+};
+
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: '#7c3aed', // Violet-600
+      light: '#8b5cf6',
+      dark: '#6d28d9',
+    },
+    secondary: {
+      main: '#ec4899', // Pink-500
+    },
+    background: {
+      default: '#f8fafc', // Slate-50
+      paper: '#ffffff',
+    },
+    text: {
+      primary: '#0f172a', // Slate-900
+      secondary: '#64748b', // Slate-500
+    },
+  },
+  typography: {
+    fontFamily: '"Outfit", "Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+    h1: { fontWeight: 700 },
+    h2: { fontWeight: 700 },
+    h3: { fontWeight: 700 },
+    h4: { fontWeight: 600 },
+    h5: { fontWeight: 600 },
+    h6: { fontWeight: 600 },
+    button: { textTransform: 'none', fontWeight: 600 }, // Modern buttons are rarely uppercase
+  },
+  components: {
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: 12, // More rounded buttons
+          padding: '8px 20px',
+        },
+      },
+    },
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          borderRadius: 16,
+          boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', // Soft shadow
+        },
+      },
+    },
+  },
+});
 
 function App() {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
   return (
-    <div className="flex min-h-screen bg-[#FDFDFD] text-slate-900 font-sans overflow-hidden selection:bg-blue-100 selection:text-blue-900">
-      <Toaster position="top-right" toastOptions={{
-        className: 'font-medium text-sm',
-        style: {
-          background: '#1e293b',
-          color: '#f8fafc',
-          padding: '12px 20px',
-          borderRadius: '12px',
-        },
-        success: {
-          iconTheme: {
-            primary: '#22c55e',
-            secondary: '#f0fdf4',
-          },
-        },
-      }} />
-      <Sidebar isOpen={isSidebarOpen} toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
-
-      <div className="flex-1 flex flex-col h-screen overflow-hidden relative z-0">
-        {/* Mobile Header */}
-        <header className="md:hidden bg-white/80 backdrop-blur-md border-b border-slate-200 p-4 flex items-center sticky top-0 z-30">
-          <button onClick={() => setIsSidebarOpen(true)} className="mr-4 text-slate-600 hover:text-slate-900 transition-colors">
-            <Menu size={24} />
-          </button>
-          <span className="font-bold text-lg text-slate-900 tracking-tight">BrainDocs</span>
-        </header>
-
-        {/* Main Content Area */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-8">
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <AuthProvider>
+        <Router>
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              style: {
+                marginTop: '60px',
+              },
+            }}
+          />
           <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="/topic/:topicSlug" element={<TopicPage />} />
-            <Route path="/topic/:topicSlug/:subSlug" element={<TopicPage />} />
-            <Route path="/topic/:topicSlug/:subSlug/:secondarySlug" element={<TopicPage />} />
+            {/* Public Routes Wrapped in PublicLayout */}
+            <Route element={<PublicLayout />}>
+              <Route path="/" element={<Home />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
+            </Route>
+
+            <Route path="/dashboard" element={
+              <ProtectedRoute>
+                <MainLayout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<DashboardHome />} />
+              <Route path="profile" element={<ProfilePage />} />
+              <Route path="search" element={<SearchResults />} />
+              <Route path="u/:userId" element={<PublicProfile />} />
+
+              {/* Nested Routing for Documentation */}
+              <Route path=":topicSlug" element={<TopicPage />} />
+              <Route path=":topicSlug/:headingSlug" element={<TopicPage />} />
+              <Route path=":topicSlug/:headingSlug/:subHeadingSlug" element={<TopicPage />} />
+            </Route>
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-        </div>
-      </div>
-    </div>
+        </Router>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 
