@@ -316,7 +316,7 @@ const ContentEditor = ({ initialBlocks = [], onSave, onExitEdit }) => {
             const token = localStorage.getItem('token');
 
             // Upload to backend
-            const response = await fetch('http://localhost:5000/api/upload/image', {
+            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1'}/upload/image`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`
