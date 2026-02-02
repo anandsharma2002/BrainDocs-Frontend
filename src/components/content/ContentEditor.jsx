@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Box, Button, TextField, Select, MenuItem, IconButton, Typography, Paper, ToggleButton, ToggleButtonGroup, LinearProgress, CircularProgress, Tooltip, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions } from '@mui/material';
+import { Box, Button, TextField, Select, MenuItem, IconButton, Typography, Paper, ToggleButton, ToggleButtonGroup, LinearProgress, CircularProgress, Tooltip, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Switch } from '@mui/material';
 import { grey } from '@mui/material/colors';
-import { Delete, Add, Save, Cancel, TextFields, Article, Code, Image as ImageIcon, DragIndicator, CloudUpload, CheckCircle, TableChart, DragHandle, SwapHoriz } from '@mui/icons-material';
+import { Delete, Add, Save, Cancel, TextFields, Article, Code, Image as ImageIcon, DragIndicator, CloudUpload, CheckCircle, TableChart, DragHandle, SwapHoriz, Link as LinkIcon } from '@mui/icons-material';
 import toast from 'react-hot-toast';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, horizontalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
@@ -175,11 +175,75 @@ const ContentEditor = ({ initialBlocks = [], onSave, onExitEdit }) => {
                     headerTextColor: '#000000',
                     cells: [['', '']]
                 }
-                : '',
+                : type === 'links'
+                    ? { items: [{ text: '', url: '' }], showSerialNumbers: false }
+                    : '',
             language: type === 'code' ? 'javascript' : undefined,
             order: blocks.length
         };
         setBlocks([...blocks, newBlock]);
+    };
+
+    // Helper to update link item
+    const updateLink = (blockIndex, linkIndex, field, value) => {
+        const newBlocks = [...blocks];
+        let content = newBlocks[blockIndex].content;
+
+        // Migrate legacy array structure to object on edit
+        if (Array.isArray(content)) {
+            content = { items: [...content], showSerialNumbers: false };
+        } else {
+            content = { ...content, items: [...content.items] };
+        }
+
+        content.items[linkIndex] = { ...content.items[linkIndex], [field]: value };
+        newBlocks[blockIndex].content = content;
+        setBlocks(newBlocks);
+    };
+
+    // Helper to add link item
+    const addLinkItem = (blockIndex) => {
+        const newBlocks = [...blocks];
+        let content = newBlocks[blockIndex].content;
+
+        if (Array.isArray(content)) {
+            content = { items: [...content], showSerialNumbers: false };
+        } else {
+            content = { ...content, items: [...content.items] };
+        }
+
+        content.items.push({ text: '', url: '' });
+        newBlocks[blockIndex].content = content;
+        setBlocks(newBlocks);
+    };
+
+    // Helper to remove link item
+    const removeLinkItem = (blockIndex, linkIndex) => {
+        const newBlocks = [...blocks];
+        let content = newBlocks[blockIndex].content;
+
+        if (Array.isArray(content)) {
+            content = { items: content.filter((_, i) => i !== linkIndex), showSerialNumbers: false };
+        } else {
+            content = { ...content, items: content.items.filter((_, i) => i !== linkIndex) };
+        }
+
+        newBlocks[blockIndex].content = content;
+        setBlocks(newBlocks);
+    };
+
+    const toggleLinkSerialNumbers = (blockIndex) => {
+        const newBlocks = [...blocks];
+        let content = newBlocks[blockIndex].content;
+
+        if (Array.isArray(content)) {
+            content = { items: [...content], showSerialNumbers: true };
+        } else {
+            content = { ...content, showSerialNumbers: !content.showSerialNumbers };
+        }
+
+        newBlocks[blockIndex].content = content;
+        setBlocks(newBlocks);
     };
 
     const updateBlock = (index, field, value) => {
@@ -975,6 +1039,61 @@ const ContentEditor = ({ initialBlocks = [], onSave, onExitEdit }) => {
                                                 )}
                                             </Box>
                                         )}
+
+                                        {block.type === 'links' && (
+                                            <Box display="flex" flexDirection="column" gap={2}>
+                                                <Box display="flex" justifyContent="space-between" alignItems="center">
+                                                    <Typography variant="subtitle2" color="text.secondary">
+                                                        Links Collection
+                                                    </Typography>
+                                                    <Box display="flex" alignItems="center" gap={1}>
+                                                        <Typography variant="caption" color="text.secondary">Serial No:</Typography>
+                                                        <Switch
+                                                            size="small"
+                                                            checked={!Array.isArray(block.content) && block.content.showSerialNumbers}
+                                                            onChange={() => toggleLinkSerialNumbers(index)}
+                                                        />
+                                                    </Box>
+                                                </Box>
+                                                {(Array.isArray(block.content) ? block.content : block.content.items).map((link, linkIndex) => (
+                                                    <Box key={linkIndex} display="flex" gap={2} alignItems="flex-start">
+                                                        <TextField
+                                                            label="Link Text"
+                                                            placeholder="e.g. Official Docs"
+                                                            value={link.text}
+                                                            onChange={(e) => updateLink(index, linkIndex, 'text', e.target.value)}
+                                                            size="small"
+                                                            sx={{ flex: 1 }}
+                                                        />
+                                                        <TextField
+                                                            label="URL"
+                                                            placeholder="https://..."
+                                                            value={link.url}
+                                                            onChange={(e) => updateLink(index, linkIndex, 'url', e.target.value)}
+                                                            size="small"
+                                                            sx={{ flex: 2 }}
+                                                        />
+                                                        <IconButton
+                                                            onClick={() => removeLinkItem(index, linkIndex)}
+                                                            disabled={(Array.isArray(block.content) ? block.content : block.content.items).length === 1}
+                                                            color="error"
+                                                            size="small"
+                                                            sx={{ mt: 0.5 }}
+                                                        >
+                                                            <Delete fontSize="small" />
+                                                        </IconButton>
+                                                    </Box>
+                                                ))}
+                                                <Button
+                                                    startIcon={<Add />}
+                                                    onClick={() => addLinkItem(index)}
+                                                    size="small"
+                                                    sx={{ alignSelf: 'flex-start' }}
+                                                >
+                                                    Add Another Link
+                                                </Button>
+                                            </Box>
+                                        )}
                                     </Paper>
                                 )}
                             </SortableBlock>
@@ -1008,11 +1127,15 @@ const ContentEditor = ({ initialBlocks = [], onSave, onExitEdit }) => {
                 }}
             >
                 <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 'bold', fontSize: '0.6rem', mb: -1 }}>ADD</Typography>
+
                 <Tooltip title="Add Heading" placement="left">
                     <IconButton onClick={() => addBlock('heading')} color="primary"><TextFields /></IconButton>
                 </Tooltip>
                 <Tooltip title="Add Paragraph" placement="left">
                     <IconButton onClick={() => addBlock('paragraph')} color="primary"><Article /></IconButton>
+                </Tooltip>
+                <Tooltip title="Add Links" placement="left">
+                    <IconButton onClick={() => addBlock('links')} color="primary"><LinkIcon /></IconButton>
                 </Tooltip>
                 <Tooltip title="Add Code Block" placement="left">
                     <IconButton onClick={() => addBlock('code')} color="primary"><Code /></IconButton>

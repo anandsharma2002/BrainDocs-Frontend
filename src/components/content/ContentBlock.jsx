@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { grey } from '@mui/material/colors';
-import { Typography, Box, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper } from '@mui/material';
-import { ContentCopy, Check } from '@mui/icons-material';
+import { Typography, Box, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Link } from '@mui/material';
+import { ContentCopy, Check, Launch } from '@mui/icons-material';
 import toast from 'react-hot-toast';
+import ImageModal from '../ImageModal';
 
 const CodeRenderer = ({ block }) => {
     const [copied, setCopied] = useState(false);
@@ -100,35 +101,52 @@ const ContentBlock = ({ block }) => {
         case 'code':
             return <CodeRenderer block={block} />;
         case 'image':
+            const [isModalOpen, setIsModalOpen] = useState(false);
+
             return (
-                <Box sx={{ my: 3, display: 'flex', justifyContent: 'center' }}>
-                    <Box
-                        sx={{
-                            maxWidth: '100%',
-                            borderRadius: 2,
-                            overflow: 'hidden',
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                            border: '1px solid',
-                            borderColor: 'divider'
-                        }}
-                    >
-                        <img
-                            src={block.content}
-                            alt="Content"
-                            style={{
-                                width: '100%',
-                                maxWidth: '400px',
-                                height: 'auto',
-                                display: 'block'
+                <>
+                    <Box sx={{ my: 3, display: 'flex', justifyContent: 'center' }}>
+                        <Box
+                            sx={{
+                                maxWidth: '100%',
+                                borderRadius: 2,
+                                overflow: 'hidden',
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                                border: '1px solid',
+                                borderColor: 'divider',
+                                cursor: 'zoom-in',
+                                transition: 'transform 0.2s, box-shadow 0.2s',
+                                '&:hover': {
+                                    transform: 'scale(1.01)',
+                                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                                }
                             }}
-                            onError={(e) => {
-                                e.target.style.padding = '40px';
-                                e.target.style.backgroundColor = '#f5f5f5';
-                                e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23ddd" width="200" height="200"/%3E%3Ctext fill="%23999" x="50%25" y="50%25" text-anchor="middle" dy=".3em" font-family="Arial"%3EImage not found%3C/text%3E%3C/svg%3E';
-                            }}
-                        />
+                            onClick={() => setIsModalOpen(true)}
+                        >
+                            <img
+                                src={block.content}
+                                alt="Content"
+                                style={{
+                                    width: '100%',
+                                    maxWidth: '600px', // Increased usage size slightly
+                                    height: 'auto',
+                                    display: 'block'
+                                }}
+                                onError={(e) => {
+                                    e.target.style.padding = '40px';
+                                    e.target.style.backgroundColor = '#f5f5f5';
+                                    e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23ddd" width="200" height="200"/%3E%3Ctext fill="%23999" x="50%25" y="50%25" text-anchor="middle" dy=".3em" font-family="Arial"%3EImage not found%3C/text%3E%3C/svg%3E';
+                                }}
+                            />
+                        </Box>
                     </Box>
-                </Box>
+
+                    <ImageModal
+                        open={isModalOpen}
+                        onClose={() => setIsModalOpen(false)}
+                        src={block.content}
+                    />
+                </>
             );
         case 'table':
             return (
@@ -248,6 +266,40 @@ const ContentBlock = ({ block }) => {
                         </TableBody>
                     </Table>
                 </TableContainer>
+            );
+
+        case 'links':
+            const linkItems = Array.isArray(block.content) ? block.content : block.content.items;
+            const showSerialNumbers = !Array.isArray(block.content) && block.content.showSerialNumbers;
+
+            return (
+                <Box sx={{ my: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    {linkItems.map((link, idx) => (
+                        <Box key={idx} display="flex" alignItems="center" gap={1}>
+                            {showSerialNumbers && (
+                                <Typography variant="body1" color="text.secondary" sx={{ minWidth: '24px', fontWeight: 'bold' }}>
+                                    {idx + 1}.
+                                </Typography>
+                            )}
+                            <Link
+                                href={link.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                underline="hover"
+                                sx={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 0.5,
+                                    width: 'fit-content',
+                                    fontWeight: 500
+                                }}
+                            >
+                                {link.text || link.url}
+                                <Launch sx={{ fontSize: 16 }} />
+                            </Link>
+                        </Box>
+                    ))}
+                </Box>
             );
         default:
             return null;
